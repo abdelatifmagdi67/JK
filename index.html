@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>موقع رفع وعرض الملفات</title>
+<style>
+* { box-sizing: border-box; font-family: Tahoma, sans-serif; }
+body { margin: 0; background: #111; color: #eee; min-height: 100vh; padding: 20px; }
+.container { max-width: 1000px; margin: auto; }
+.box { max-width: 420px; margin: 60px auto; background: #1e1e1e; padding: 30px; border-radius: 14px; box-shadow: 0 0 25px #000; }
+h2 { text-align: center; color: #4fc3f7; margin-top: 0; }
+.tabs { display: flex; margin-bottom: 20px; background: #0f0f0f; border-radius: 10px; overflow: hidden; }
+.tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: #888; font-weight: bold; transition: .2s; }
+.tab.active { background: #4fc3f7; color: #000; }
+input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #333; background: #0f0f0f; color: #fff; border-radius: 8px; font-size: 14px; }
+button { width: 100%; padding: 12px; background: #4fc3f7; color: #000; border: 0; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; margin-top: 10px; }
+button:hover { background: #29b6f6; }
+.msg { padding: 10px; border-radius: 8px; text-align: center; margin-bottom: 12px; font-size: 14px; }
+.msg.error { background: #7f1d1d; color: #fecaca; }
+.msg.success { background: #14532d; color: #bbf7d0; }
+.form { display: none; }
+.form.active { display: block; }
+.header { display: flex; justify-content: space-between; align-items: center; background: #1e1e1e; padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; }
+.header h3 { margin: 0; color: #4fc3f7; }
+.logout-btn { background: #ef5350; color: #fff; padding: 8px 16px; border: 0; border-radius: 8px; cursor: pointer; font-weight: bold; width: auto; margin: 0; }
+.upload-box { background: #1e1e1e; padding: 25px; border-radius: 12px; text-align: center; margin-bottom: 20px; border: 2px dashed #4fc3f7; }
+.upload-box input[type=file] { background: transparent; border: 0; margin: 10px 0; color: #eee; padding: 10px; }
+.upload-box button { width: auto; padding: 10px 30px; }
+.hint { font-size: 13px; color: #888; margin-top: 8px; }
+table { width: 100%; border-collapse: collapse; background: #1e1e1e; border-radius: 12px; overflow: hidden; }
+th, td { padding: 12px; text-align: right; border-bottom: 1px solid #333; font-size: 14px; }
+th { background: #4fc3f7; color: #000; }
+tr:hover { background: #252525; }
+.action-btn { padding: 5px 12px; border-radius: 6px; font-size: 13px; margin: 2px 3px; display: inline-block; border: 0; cursor: pointer; color: #fff; }
+.view { background: #4caf50; }
+.dl { background: #2196f3; }
+.del { background: #ef5350; }
+.empty { text-align: center; color: #888; padding: 20px; }
+.badge { background: #333; padding: 2px 8px; border-radius: 6px; font-size: 12px; color: #4fc3f7; }
+.progress { height: 6px; background: #333; border-radius: 3px; margin-top: 10px; display: none; }
+.progress-bar { height: 100%; width: 0; background: #4fc3f7; border-radius: 3px; transition: .2s; }
+.stats { background: #1e1e1e; padding: 12px 20px; border-radius: 10px; margin-bottom: 15px; font-size: 14px; color: #aaa; }
+
+/* Modal */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 1000; justify-content: center; align-items: center; padding: 20px; }
+.modal.active { display: flex; }
+.modal-content { background: #1e1e1e; border-radius: 12px; max-width: 92vw; max-height: 92vh; overflow: auto; padding: 20px; position: relative; min-width: 320px; width: 90%; }
+.modal-close { position: absolute; top: 10px; left: 10px; background: #ef5350; color: #fff; border: 0; width: 32px; height: 32px; border-radius: 50%; cursor: pointer; font-weight: bold; font-size: 16px; z-index: 2; }
+.modal h3 { margin-top: 0; color: #4fc3f7; padding-left: 40px; }
+.modal-content img, .modal-content video { max-width: 100%; max-height: 70vh; border-radius: 8px; display: block; margin: 10px auto; }
+.modal-content audio { width: 100%; margin: 10px 0; }
+.modal-content pre { background: #0f0f0f; padding: 15px; border-radius: 8px; max-height: 60vh; overflow: auto; white-space: pre-wrap; word-break: break-word; font-size: 13px; direction: ltr; text-align: left; }
+.modal-content iframe { width: 100%; height: 65vh; border: 0; border-radius: 8px; background: #fff; }
+.no-preview { text-align: center; padding: 30px; color: #888; }
+
+/* Textarea للنصوص */
+.text-viewer { position: relative; margin-top: 10px; }
+.text-viewer textarea {
+    width: 100%; min-height: 50vh; max-height: 65vh;
+    background: #0f0f0f; color: #e0e0e0; border: 1px solid #333;
+    border-radius: 8px; padding: 15px; font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 14px; line-height: 1.6; resize: vertical;
+    direction: ltr; text-align: left; white-space: pre; overflow: auto;
+}
+.text-toolbar { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+.copy-btn {
+    background: #4caf50; color: #fff; border: 0; padding: 8px 18px;
+    border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 14px; width: auto; margin: 0;
+}
+.copy-btn:hover { background: #43a047; }
+.copy-btn.copied { background: #2e7d32; }
+.text-info { color: #888; font-size: 13px; margin-right: auto; }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- ============ تسجيل الدخول / إنشاء حساب ============ -->
+<div id="authSection" class="box">
+    <h2>📁 موقع رفع وعرض الملفات</h2>
+    <div class="tabs">
+        <div class="tab active" data-tab="login">تسجيل دخول</div>
+        <div class="tab" data-tab="register">إنشاء حساب</div>
+    </div>
+    <div id="msgBox"></div>
+
+    <form id="loginForm" class="form active" onsubmit="return doLogin(event)">
+        <input type="email" id="loginEmail" placeholder="البريد الإلكتروني" required>
+        <input type="password" id="loginPass" placeholder="كلمة السر" required>
+        <button type="submit">🔐 دخول</button>
+    </form>
+
+    <form id="registerForm" class="form" onsubmit="return doRegister(event)">
+        <input type="text" id="regName" placeholder="اسم المستخدم" required>
+        <input type="email" id="regEmail" placeholder="البريد الإلكتروني" required>
+        <input type="password" id="regPass" placeholder="كلمة السر (6 أحرف على الأقل)" required minlength="6">
+        <input type="password" id="regConfirm" placeholder="تأكيد كلمة السر" required>
+        <button type="submit">📝 إنشاء الحساب</button>
+    </form>
+</div>
+
+<!-- ============ لوحة التحكم ============ -->
+<div id="dashSection" style="display:none">
+    <div class="header">
+        <h3>👋 أهلاً <span id="userName"></span></h3>
+        <button class="logout-btn" onclick="doLogout()">🚪 خروج</button>
+    </div>
+
+    <div id="msgDash"></div>
+
+    <div class="upload-box">
+        <h3>📤 رفع ملف جديد</h3>
+        <form onsubmit="return doUpload(event)">
+            <input type="file" id="fileInput" required>
+            <br>
+            <button type="submit">رفع الملف</button>
+            <div class="progress" id="progressBox"><div class="progress-bar" id="progressBar"></div></div>
+        </form>
+        <p class="hint">✅ كل الصيغ مدعومة — حتى الملفات بدون امتداد (زي "ملف" أو "myfile") هيتعرف على نوعها تلقائياً</p>
+    </div>
+
+    <div class="stats">📊 المساحة المستخدمة: <span id="usedSpace">0 B</span></div>
+
+    <h3>📂 ملفاتي (<span id="filesCount">0</span>)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>الاسم</th><th>الحجم</th><th>النوع</th><th>التاريخ</th><th>إجراءات</th>
+            </tr>
+        </thead>
+        <tbody id="filesTable">
+            <tr><td colspan="5" class="empty">لا توجد ملفات بعد</td></tr>
+        </tbody>
+    </table>
+</div>
+
+</div>
+
+<!-- ============ نافذة العرض ============ -->
+<div class="modal" id="previewModal">
+    <div class="modal-content">
+        <button class="modal-close" onclick="closePreview()">✕</button>
+        <h3 id="previewTitle"></h3>
+        <div id="previewBody"></div>
+    </div>
+</div>
+
+<script>
+/* ============================================================
+   التخزين: localStorage للمستخدمين + IndexedDB للملفات
+   ============================================================ */
+const USERS_KEY = 'filehost_users';
+const SESSION_KEY = 'filehost_session';
+const DB_NAME = 'filehost_db';
+const STORE = 'files';
+let db = null;
+
+/* ---------- IndexedDB ---------- */
+function openDB() {
+    return new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, 1);
+        req.onupgradeneeded = e => {
+            const d = e.target.result;
+            if (!d.objectStoreNames.contains(STORE)) {
+                const store = d.createObjectStore(STORE, { keyPath: 'id', autoIncrement: true });
+                store.createIndex('email', 'email', { unique: false });
+            }
+        };
+        req.onsuccess = e => { db = e.target.result; resolve(db); };
+        req.onerror = e => reject(e.target.error);
+    });
+}
+function dbAdd(file) {
+    return new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        const r = tx.objectStore(STORE).add(file);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+    });
+}
+function dbGetAll(email) {
+    return new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readonly');
+        const r = tx.objectStore(STORE).index('email').getAll(email);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+    });
+}
+function dbGet(id) {
+    return new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readonly');
+        const r = tx.objectStore(STORE).get(id);
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+    });
+}
+function dbDelete(id) {
+    return new Promise((res, rej) => {
+        const tx = db.transaction(STORE, 'readwrite');
+        const r = tx.objectStore(STORE).delete(id);
+        r.onsuccess = () => res();
+        r.onerror = () => rej(r.error);
+    });
+}
+
+/* ---------- أدوات ---------- */
+function getUsers() { return JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); }
+function saveUsers(u) { localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+function humanSize(b) {
+    if (b < 1024) return b + ' B';
+    if (b < 1048576) return (b/1024).toFixed(2) + ' KB';
+    if (b < 1073741824) return (b/1048576).toFixed(2) + ' MB';
+    return (b/1073741824).toFixed(2) + ' GB';
+}
+function showMsg(t, text, type='error') {
+    document.getElementById(t).innerHTML = `<div class="msg ${type}">${text}</div>`;
+    setTimeout(() => { const e = document.getElementById(t); if (e) e.innerHTML = ''; }, 4000);
+}
+function formatDate(ts) { return new Date(ts).toLocaleString('ar-EG'); }
+function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+async function sha256(text) {
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+/* ---------- استخراج الامتداد ---------- */
+function getExt(name) {
+    const dot = name.lastIndexOf('.');
+    if (dot === -1 || dot === name.length - 1) return ''; // مفيش امتداد
+    return name.slice(dot + 1).toLowerCase();
+}
+
+/* ---------- كشف هل الملف نصي؟ ---------- */
+// نفحص أول 5000 بايت — لو فيها بايتات null أو نسبة كبيرة من الأحرف غير القابلة للطباعة -> مش نصي
+async function isTextFile(blob) {
+    try {
+        const slice = blob.slice(0, 5000);
+        const buf = new Uint8Array(await slice.arrayBuffer());
+        if (buf.length === 0) return true; // ملف فاضي -> نصي
+
+        let nulls = 0;
+        let weird = 0;
+        for (let i = 0; i < buf.length; i++) {
+            const b = buf[i];
+            if (b === 0) nulls++;
+            // أحرف تحكم غير مسموحة (ما عدا tab, newline, carriage return)
+            if (b < 7 || (b > 13 && b < 32 && b !== 27)) weird++;
+        }
+        // لو فيه null بايت أو أكثر من 5% أحرف غريبة -> مش نصي
+        if (nulls > 0) return false;
+        if (weird / buf.length > 0.05) return false;
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
+/* ---------- التبويبات ---------- */
+document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        document.querySelectorAll('.form').forEach(f => f.classList.remove('active'));
+        document.getElementById(tab.dataset.tab === 'login' ? 'loginForm' : 'registerForm').classList.add('active');
+    });
+});
+
+/* ---------- إنشاء حساب ---------- */
+async function doRegister(e) {
+    e.preventDefault();
+    const name = document.getElementById('regName').value.trim();
+    const email = document.getElementById('regEmail').value.trim().toLowerCase();
+    const pass = document.getElementById('regPass').value;
+    const confirm = document.getElementById('regConfirm').value;
+
+    if (!name || !email || !pass) return showMsg('msgBox','❌ كل الحقول مطلوبة'), false;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return showMsg('msgBox','❌ البريد غير صحيح'), false;
+    if (pass.length < 6) return showMsg('msgBox','❌ كلمة السر 6 أحرف على الأقل'), false;
+    if (pass !== confirm) return showMsg('msgBox','❌ كلمتا السر غير متطابقتين'), false;
+
+    const users = getUsers();
+    if (users.some(u => u.email === email)) return showMsg('msgBox','❌ البريد مسجل بالفعل'), false;
+
+    users.push({ name, email, password: await sha256(pass), created: Date.now() });
+    saveUsers(users);
+
+    showMsg('msgBox','✅ تم إنشاء الحساب! سجل دخول الآن','success');
+    document.querySelector('.tab[data-tab="login"]').click();
+    document.getElementById('loginEmail').value = email;
+    document.getElementById('loginPass').focus();
+    return false;
+}
+
+/* ---------- تسجيل الدخول ---------- */
+async function doLogin(e) {
+    e.preventDefault();
+    const email = document.getElementById('loginEmail').value.trim().toLowerCase();
+    const pass = document.getElementById('loginPass').value;
+    const user = getUsers().find(u => u.email === email);
+    if (!user) return showMsg('msgBox','❌ البريد أو كلمة السر غير صحيحة'), false;
+    if (await sha256(pass) !== user.password) return showMsg('msgBox','❌ البريد أو كلمة السر غير صحيحة'), false;
+
+    localStorage.setItem(SESSION_KEY, email);
+    enterDashboard();
+    return false;
+}
+
+/* ---------- تسجيل الخروج ---------- */
+function doLogout() {
+    localStorage.removeItem(SESSION_KEY);
+    document.getElementById('dashSection').style.display = 'none';
+    document.getElementById('authSection').style.display = 'block';
+    document.getElementById('loginPass').value = '';
+}
+
+/* ---------- الدخول للوحة ---------- */
+async function enterDashboard() {
+    const email = localStorage.getItem(SESSION_KEY);
+    if (!email) return;
+    const user = getUsers().find(u => u.email === email);
+    if (!user) return doLogout();
+
+    document.getElementById('authSection').style.display = 'none';
+    document.getElementById('dashSection').style.display = 'block';
+    document.getElementById('userName').textContent = user.name;
+
+    await loadFiles(email);
+}
+
+/* ---------- تحميل الملفات ---------- */
+async function loadFiles(email) {
+    const files = await dbGetAll(email);
+    const tbody = document.getElementById('filesTable');
+    document.getElementById('filesCount').textContent = files.length;
+    document.getElementById('usedSpace').textContent = humanSize(files.reduce((s,f) => s+f.size, 0));
+
+    if (files.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">لا توجد ملفات بعد</td></tr>';
+        return;
+    }
+    tbody.innerHTML = files.map(f => `
+        <tr>
+            <td>${escapeHtml(f.name)}</td>
+            <td>${humanSize(f.size)}</td>
+            <td><span class="badge">${escapeHtml(f.ext || 'بدون امتداد')}</span></td>
+            <td>${formatDate(f.date)}</td>
+            <td>
+                <button class="action-btn view" onclick="previewFile(${f.id})">👁 عرض</button>
+                <button class="action-btn dl" onclick="downloadFile(${f.id})">⬇ تحميل</button>
+                <button class="action-btn del" onclick="deleteFile(${f.id})">🗑 حذف</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+/* ---------- رفع ملف ---------- */
+async function doUpload(e) {
+    e.preventDefault();
+    const input = document.getElementById('fileInput');
+    const file = input.files[0];
+    if (!file) return false;
+    const email = localStorage.getItem(SESSION_KEY);
+    if (!email) return false;
+
+    // استخراج الامتداد (ممكن يكون فاضي لو مفيش نقطة)
+    const ext = getExt(file.name);
+
+    const progressBox = document.getElementById('progressBox');
+    const progressBar = document.getElementById('progressBar');
+    progressBox.style.display = 'block';
+    progressBar.style.width = '0%';
+
+    let p = 0;
+    const interval = setInterval(() => {
+        p += 15;
+        progressBar.style.width = Math.min(p, 95) + '%';
+    }, 80);
+
+    try {
+        const buf = await file.arrayBuffer();
+        const blob = new Blob([buf], { type: file.type || 'application/octet-stream' });
+
+        // نتأكد هل الملف نصي؟ نخزن النتيجة عشان نستخدمها في العرض
+        const textCheck = await isTextFile(blob);
+
+        await dbAdd({
+            email,
+            name: file.name,
+            size: file.size,
+            type: file.type || 'application/octet-stream',
+            ext, // يتيمه فاضي لو مفيش نقطة
+            date: Date.now(),
+            blob,
+            isText: textCheck
+        });
+
+        clearInterval(interval);
+        progressBar.style.width = '100%';
+        setTimeout(() => { progressBox.style.display = 'none'; progressBar.style.width = '0%'; }, 500);
+
+        input.value = '';
+        showMsg('msgDash','✅ تم رفع الملف بنجاح','success');
+        await loadFiles(email);
+    } catch (err) {
+        console.error(err);
+        clearInterval(interval);
+        progressBox.style.display = 'none';
+        showMsg('msgDash','❌ فشل الرفع (المساحة ممتلئة أو الملف كبير جداً)','error');
+    }
+    return false;
+}
+
+/* ---------- نسخ النص ---------- */
+async function copyText(text, btn) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const original = btn.textContent;
+        btn.textContent = '✅ تم النسخ!';
+        btn.classList.add('copied');
+        setTimeout(() => {
+            btn.textContent = original;
+            btn.classList.remove('copied');
+        }, 1500);
+    } catch (e) {
+        // بديل لو clipboard مش مدعوم
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy'); 
+            btn.textContent = '✅ تم النسخ!';
+            btn.classList.add('copied');
+            setTimeout(() => { btn.textContent = '📋 نسخ الكل'; btn.classList.remove('copied'); }, 1500);
+        } catch (err) {
+            alert('تعذر النسخ — حدد النص يدوياً من المربع');
+        }
+        ta.remove();
+    }
+}
+
+/* ---------- معاينة الملف ---------- */
+async function previewFile(id) {
+    const f = await dbGet(id);
+    if (!f || !f.blob) return alert('الملف غير موجود');
+
+    const modal = document.getElementById('previewModal');
+    const title = document.getElementById('previewTitle');
+    const body = document.getElementById('previewBody');
+
+    title.textContent = f.name;
+    body.innerHTML = '';
+
+    const url = URL.createObjectURL(f.blob);
+    modal.dataset.url = url;
+
+    const ext = (f.ext || '').toLowerCase();
+    const mime = (f.type || '').toLowerCase();
+    const isText = f.isText !== false; // افتراضياً نصي لو مش معروف
+
+    // صور
+    if (['png','jpg','jpeg','gif','webp','svg','bmp','ico'].includes(ext) || mime.startsWith('image/')) {
+        body.innerHTML = `<img src="${url}" alt="${escapeHtml(f.name)}">`;
+    }
+    // فيديو
+    else if (['mp4','webm','ogg','mov','m4v','mkv','avi'].includes(ext) || mime.startsWith('video/')) {
+        body.innerHTML = `<video src="${url}" controls autoplay></video>`;
+    }
+    // صوت
+    else if (['mp3','wav','ogg','m4a','aac','flac'].includes(ext) || mime.startsWith('audio/')) {
+        body.innerHTML = `<audio src="${url}" controls autoplay></audio>`;
+    }
+    // PDF
+    else if (ext === 'pdf' || mime === 'application/pdf') {
+        body.innerHTML = `<iframe src="${url}"></iframe>`;
+    }
+    // HTML (بامتداد أو بدونه)
+    else if (ext === 'html' || ext === 'htm' || mime === 'text/html') {
+        // نقرأ النص
+        try {
+            const text = await f.blob.text();
+            body.innerHTML = `
+                <div class="text-toolbar">
+                    <button class="copy-btn" onclick='copyText(this.dataset.text, this)' data-text="${escapeHtml(text)}">📋 نسخ الكل</button>
+                    <span class="text-info">${text.length} حرف</span>
+                </div>
+                <div class="text-viewer">
+                    <textarea readonly>${escapeHtml(text)}</textarea>
+                </div>
+                <p style="color:#888;font-size:13px;margin-top:10px">💡 نسخ النص مباشرة من المربع أعلاه ثم الصقه في ملف جديد باسم .html لتشغيله</p>
+            `;
+            // إضافة النص كـ data-attribute (الطريقة دي أقل مشاكل من JSON)
+            const btn = body.querySelector('.copy-btn');
+            btn.dataset.text = text;
+            btn.onclick = function() { copyText(text, this); };
+        } catch (err) {
+            body.innerHTML = `<div class="no-preview">❌ تعذر قراءة الملف</div>`;
+        }
+    }
+    // ملف نصي (txt, json, css, lua, xml, js, md, بدون امتداد...)
+    else if (isText) {
+        try {
+            const text = await f.blob.text();
+            body.innerHTML = `
+                <div class="text-toolbar">
+                    <button class="copy-btn">📋 نسخ الكل</button>
+                    <span class="text-info">${text.length} حرف • ${f.ext || 'بدون امتداد'}</span>
+                </div>
+                <div class="text-viewer">
+                    <textarea readonly>${escapeHtml(text)}</textarea>
+                </div>
+            `;
+            const btn = body.querySelector('.copy-btn');
+            btn.onclick = function() { copyText(text, this); };
+        } catch (err) {
+            body.innerHTML = `<div class="no-preview">❌ تعذر قراءة الملف كنص</div>`;
+        }
+    }
+    // مجهول
+    else {
+        body.innerHTML = `
+            <div class="no-preview">
+                <p style="font-size:48px;margin:0">📦</p>
+                <p>لا يمكن معاينة هذا النوع (${escapeHtml(ext || 'بدون امتداد')})</p>
+                <p>استخدم زر التحميل لحفظه على جهازك</p>
+            </div>
+        `;
+    }
+
+    modal.classList.add('active');
+}
+
+/* ---------- إغلاق ---------- */
+function closePreview() {
+    const modal = document.getElementById('previewModal');
+    document.getElementById('previewBody').innerHTML = '';
+    if (modal.dataset.url) {
+        URL.revokeObjectURL(modal.dataset.url);
+        delete modal.dataset.url;
+    }
+    modal.classList.remove('active');
+}
+
+document.getElementById('previewModal').addEventListener('click', e => {
+    if (e.target.id === 'previewModal') closePreview();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePreview(); });
+
+/* ---------- تحميل ---------- */
+async function downloadFile(id) {
+    const f = await dbGet(id);
+    if (!f || !f.blob) return alert('الملف غير موجود');
+    const url = URL.createObjectURL(f.blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = f.name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/* ---------- حذف ---------- */
+async function deleteFile(id) {
+    if (!confirm('تأكيد حذف الملف؟')) return;
+    await dbDelete(id);
+    showMsg('msgDash','✅ تم حذف الملف','success');
+    await loadFiles(localStorage.getItem(SESSION_KEY));
+}
+
+/* ---------- الإقلاع ---------- */
+(async function init() {
+    try { await openDB(); }
+    catch (e) { console.error(e); alert('متصفحك لا يدعم IndexedDB'); return; }
+    if (localStorage.getItem(SESSION_KEY)) enterDashboard();
+})();
+</script>
+</body>
+</html>
